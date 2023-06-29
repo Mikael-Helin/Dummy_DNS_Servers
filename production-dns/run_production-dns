@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+import os
+import time
+import subprocess
+
+container_name1 = "production-dns-1"
+container_name2 = "production-dns-2"
+lock_file = "/home/production/production-dns/.lock"
+subprocess.run(["touch", lock_file])
+
+def container_exists(container_name):
+    return subprocess.run(["podman", "container", "exists", container_name]).returncode == 0
+
+def create_container(container_name, ipv6):
+    subprocess.run([
+        "podman", "run", "--name", container_name, "--restart=always",
+        "--network", "production-ipv6-network",
+        "--ip6", ipv6,
+        "-d", "localhost:5000/dns/bind__debian-bullseye:latest"
+    ])
+
+def is_container_running(container_name):
+    output = subprocess.run(["podman", "pod", "ps", "-a", "--format", "{{.Name}}::{{.Status}}\n"], capture_output=True, text=True)
+    pods = output.stdout.strip().split("\n")
+    for pod in pods:
+        temp = pod.split("::")
+        if temp[0] == container_name and temp[1] == "Running":
+            return True
+    return False
+
+def start_container(container_name):
+    subprocess.run(["podman", "start", container_name])
+
+def stop_container(container_name):
+    subprocess.run(["podman", "stop", container_name])
+
+while os.path.isfile(lock_file):
+    c1 = container_exists(container_name1)
+    c2 = container_exists(container_name2)
+    if not (c1 and c2):
+        if not c1:
+            create_container(container_name1, "fc01::2")
+        if not c2:
+            create_container(container_name2, "fc01::3")
+    else:
+        c1 = is_container_running(container_name1)
+        c2 = is_container_running(container_name2)
+        if not (c1 and c2):
+            if not c1:
+                start_container(container_name1)
+            if not c2:
+                start_container(container_name2)
+        else:
+            time.sleep(9)
+    time.sleep(1)
+
+stop_container(container_name1)
+stop_container(container_name2)

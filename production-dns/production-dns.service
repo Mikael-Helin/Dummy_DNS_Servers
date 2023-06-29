@@ -1,0 +1,12 @@
+[Unit]
+Description=Run production-dns DNS service at boot
+After=network-online.target podman.socket
+
+[Service]
+User=production
+Restart=always
+ExecStart=/usr/bin/python3 /home/production/production-dns/run_production-dns
+ExecStop=/usr/bin/rm /home/production/production-dns/.lock
+
+[Install]
+WantedBy=multi-user.target
