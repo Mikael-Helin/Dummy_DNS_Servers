@@ -1,2 +1,2 @@
 FROM debian:bullseye
-CMD ["/usr/bin/sleep", "600"]
+CMD /usr/bin/sleep 600
